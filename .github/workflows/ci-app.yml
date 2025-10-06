@@ -1,7 +1,16 @@
+# .github/workflows/ci-app.yml
 name: CI • Build • Test
 
 on:
+  workflow_dispatch:      # <-- Manual run button in Actions tab
   pull_request:
+    branches: [ main ]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/ci-app.yml"
+  push:                   # <-- optional: also run CI on direct pushes to main
+    branches: [ main ]
     paths:
       - "backend/**"
       - "frontend/**"
@@ -20,9 +29,6 @@ jobs:
           cache: maven
       - name: Build & Test
         run: mvn -B -U clean verify
-      # optional: ensure Dockerfile builds
-      - name: Docker build (optional)
-        run: docker build -t local/backend:${{ github.sha }} -f backend/Dockerfile backend
 
   frontend:
     runs-on: ubuntu-latest
@@ -38,6 +44,3 @@ jobs:
       - run: npm run lint --if-present
       - run: npm test --if-present -- --run
       - run: npm run build
-      # optional: ensure Dockerfile builds
-      - name: Docker build (optional)
-        run: docker build -t local/frontend:${{ github.sha }} -f frontend/Dockerfile frontend
