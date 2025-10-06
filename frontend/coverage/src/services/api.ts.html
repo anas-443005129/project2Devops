@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">87.8% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>59/59</span>
+                <span class='fraction'>72/82</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">70% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>7/7</span>
+                <span class='fraction'>7/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">87.8% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>59/59</span>
+                <span class='fraction'>72/82</span>
             </div>
         
             
@@ -123,7 +123,30 @@
 <a name='L58'></a><a href='#L58'>58</a>
 <a name='L59'></a><a href='#L59'>59</a>
 <a name='L60'></a><a href='#L60'>60</a>
-<a name='L61'></a><a href='#L61'>61</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -180,13 +203,40 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import axios from 'axios';
-import type { Ingredient, CartItem, Order, CustomerDetails, IngredientsResponse, IngredientCategory } from '../types';
+import type { Ingredient, CartItem, Order, IngredientsResponse, IngredientCategory } from '../types';
 &nbsp;
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+&nbsp;
+// Debug: Log the API URL to help with troubleshooting
+console.log('API_BASE_URL:', API_BASE_URL);
+console.log('VITE_API_BASE_URL env var:', import.meta.env.VITE_API_BASE_URL);
 &nbsp;
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -208,10 +258,10 @@ export const getIngredientsByCategory = async (category: IngredientCategory): Pr
 &nbsp;
 // Cart APIs
 export const addToCart = async (item: {
-  burgerId?: string;
-  customLayers: { ingredientId: number; quantity: number }[];
+  sessionId: string;
+  ingredientId: number;
   quantity: number;
-  price: number;
+  burgerLayers?: { ingredientId: number; layerOrder: number; quantity: number }[];
 }): Promise&lt;CartItem&gt; =&gt; {
   const response = await apiClient.post&lt;CartItem&gt;('/api/cart/items', item);
   return response.data;
@@ -228,9 +278,11 @@ export const removeCartItem = async (itemId: number): Promise&lt;void&gt; =&gt; 
 &nbsp;
 // Order APIs
 export const createOrder = async (orderData: {
-  cartItems: CartItem[];
-  customerDetails: CustomerDetails;
-  totalAmount: number;
+  sessionId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  cartItemIds: number[];
 }): Promise&lt;Order&gt; =&gt; {
   const response = await apiClient.post&lt;Order&gt;('/api/orders', orderData);
   return response.data;
@@ -241,6 +293,23 @@ export const getOrder = async (orderId: string): Promise&lt;Order&gt; =&gt; {
   return response.data;
 };
 &nbsp;
+// Order History APIs
+export const getOrderHistory = <span class="fstat-no" title="function not covered" >async (email?: string): Promise&lt;Order[]&gt; =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const params = email ? { email } : {};</span>
+<span class="cstat-no" title="statement not covered" >  const response = await apiClient.get&lt;Order[]&gt;('/api/orders/history', { params });</span>
+<span class="cstat-no" title="statement not covered" >  return response.data;</span>
+<span class="cstat-no" title="statement not covered" >};</span>
+&nbsp;
+export const getOrdersByCustomerEmail = <span class="fstat-no" title="function not covered" >async (email: string): Promise&lt;Order[]&gt; =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const response = await apiClient.get&lt;Order[]&gt;(`/api/orders/customer/${email}`);</span>
+<span class="cstat-no" title="statement not covered" >  return response.data;</span>
+<span class="cstat-no" title="statement not covered" >};</span>
+&nbsp;
+export const getOrdersBySession = <span class="fstat-no" title="function not covered" >async (sessionId: string): Promise&lt;Order[]&gt; =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const response = await apiClient.get&lt;Order[]&gt;(`/api/orders/session/${sessionId}`);</span>
+<span class="cstat-no" title="statement not covered" >  return response.data;</span>
+<span class="cstat-no" title="statement not covered" >};</span>
+&nbsp;
 export default apiClient;
 &nbsp;
 &nbsp;</pre></td></tr></table></pre>
@@ -250,7 +319,7 @@ export default apiClient;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-02T12:48:31.131Z
+                at 2025-10-05T07:50:40.537Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
