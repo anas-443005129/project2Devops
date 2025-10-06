@@ -3,9 +3,12 @@ name: CI • Build • Test • Scan
 on:
   pull_request:
     paths:
-      - "backend/**"
-      - "frontend/**"
-      - ".github/workflows/ci-app.yml"
+      - 'backend/**'
+      - 'frontend/**'
+      - 'infra/terraform/**'
+      - '.github/workflows/ci-app.yml'
+  workflow_dispatch:
+
 
 permissions:
   contents: read
