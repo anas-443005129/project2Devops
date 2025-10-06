@@ -23,7 +23,7 @@ resource "azurerm_subnet" "aci_frontend" {
   delegation {
     name = "aci-frontend-delegation"
     service_delegation {
-      name    = "Microsoft.ContainerInstance/containerGroups"
+      name = "Microsoft.ContainerInstance/containerGroups"
       actions = [
         "Microsoft.Network/virtualNetworks/subnets/join/action",
         "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action",
@@ -43,7 +43,7 @@ resource "azurerm_subnet" "aci_backend" {
   delegation {
     name = "aci-backend-delegation"
     service_delegation {
-      name    = "Microsoft.ContainerInstance/containerGroups"
+      name = "Microsoft.ContainerInstance/containerGroups"
       actions = [
         "Microsoft.Network/virtualNetworks/subnets/join/action",
         "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action",
