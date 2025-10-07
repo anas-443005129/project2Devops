@@ -2,13 +2,10 @@ name: Terraform (Azure)
 
 on:
   pull_request:
-    paths:
-      - "infra/terraform/**"
+    paths: ['infra/terraform/**']
   push:
-    branches:
-      - main
-    paths:
-      - "infra/terraform/**"
+    branches: [main]
+    paths: ['infra/terraform/**']
 
 permissions:
   id-token: write
@@ -17,7 +14,7 @@ permissions:
 
 env:
   TF_ROOT: infra/terraform
-  TF_VERSION: "1.8.5"
+  TF_VERSION: '1.8.5'
 
 jobs:
   tf:
@@ -25,17 +22,16 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.TF_ROOT }}
-    # Make secrets available to Terraform as input variables
+    # 👉 Provide all required TF variables up front (no interactive prompts)
     env:
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
-      TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Optional: hard-code images via TF vars
-      # TF_VAR_fe_image: anasabdullahalzahrani/three-tier-frontend:latest
-      # TF_VAR_be_image: anasabdullahalzahrani/three-tier-backend:latest
+      TF_VAR_dockerhub_token:    ${{ secrets.DOCKERHUB_TOKEN }}
+      # Set images here (change to your tags if you don’t want "latest")
+      TF_VAR_fe_image: anasabdullahalzahrani/three-tier-frontend:latest
+      TF_VAR_be_image: anasabdullahalzahrani/three-tier-backend:latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Azure login
         uses: azure/login@v2
@@ -50,13 +46,14 @@ jobs:
       - name: Init
         run: terraform init -input=false
 
-      - name: Format check
+      - name: Fmt check
         run: terraform fmt -check -recursive
 
       - name: Validate
-        run: terraform validate -no-color
+        run: terraform validate
 
-      # --- PR Plan: fast, no refresh, high parallelism ---
+      # -------- Plans --------
+
       - name: Plan (PR)
         if: github.event_name == 'pull_request'
         run: |
@@ -67,15 +64,13 @@ jobs:
             -var "subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -no-color | tee plan.txt
 
-      # Optional: comment the plan on the PR
-      # - name: Comment plan on PR
-      #   if: github.event_name == 'pull_request'
-      #   uses: marocchino/sticky-pull-request-comment@v2
-      #   with:
-      #     recreate: true
-      #     path: ${{ env.TF_ROOT }}/plan.txt
+      - name: Comment plan (PR)
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          recreate: true
+          path: ${{ env.TF_ROOT }}/plan.txt
 
-      # --- Push Plan: full plan (with refresh) and save to file ---
       - name: Plan (push)
         if: github.event_name == 'push'
         run: |
