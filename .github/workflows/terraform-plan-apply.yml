@@ -22,13 +22,15 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.TF_ROOT }}
-    # 👉 Provide all required TF variables up front (no interactive prompts)
+
+    # Provide required TF variables (root vars) so validate/plan won't prompt
     env:
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token:    ${{ secrets.DOCKERHUB_TOKEN }}
-      # Set images here (change to your tags if you don’t want "latest")
-      TF_VAR_fe_image: anasabdullahalzahrani/three-tier-frontend:latest
-      TF_VAR_be_image: anasabdullahalzahrani/three-tier-backend:latest
+      TF_VAR_fe_image:           anasabdullahalzahrani/three-tier-frontend:latest
+      TF_VAR_be_image:           anasabdullahalzahrani/three-tier-backend:latest
+      TF_VAR_rg_name:            rg-capstone-dev
+      TF_VAR_rg_location:        westeurope
 
     steps:
       - uses: actions/checkout@v4
@@ -47,10 +49,16 @@ jobs:
         run: terraform init -input=false
 
       - name: Fmt check
-        run: terraform fmt -check -recursive
+        run: |
+          terraform fmt -check -recursive || {
+            echo "::group::fmt-diff"
+            terraform fmt -recursive -diff
+            echo "::endgroup::"
+            exit 1
+          }
 
       - name: Validate
-        run: terraform validate
+        run: terraform validate -no-color
 
       # -------- Plans --------
 
