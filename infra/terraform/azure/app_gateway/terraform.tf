@@ -72,24 +72,24 @@ resource "azurerm_application_gateway" "agw" {
   # FIX: set pick_host_name_from_backend_http_settings = true
   # so the probe uses the Host header from the associated HTTP settings.
   probe {
-    name                                     = "probe-frontend"
-    protocol                                 = "Http"
-    path                                     = "/"
-    port                                     = var.fe_port
-    interval                                 = 30
-    timeout                                  = 30
-    unhealthy_threshold                      = 3
+    name                                      = "probe-frontend"
+    protocol                                  = "Http"
+    path                                      = "/"
+    port                                      = var.fe_port
+    interval                                  = 30
+    timeout                                   = 30
+    unhealthy_threshold                       = 3
     pick_host_name_from_backend_http_settings = true
   }
 
   probe {
-    name                                     = "probe-backend"
-    protocol                                 = "Http"
-    path                                     = "/api/health"
-    port                                     = var.be_port
-    interval                                 = 30
-    timeout                                  = 30
-    unhealthy_threshold                      = 3
+    name                                      = "probe-backend"
+    protocol                                  = "Http"
+    path                                      = "/api/health"
+    port                                      = var.be_port
+    interval                                  = 30
+    timeout                                   = 30
+    unhealthy_threshold                       = 3
     pick_host_name_from_backend_http_settings = true
   }
 
