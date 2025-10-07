@@ -1,28 +1,18 @@
 name: Terraform (Azure)
 
 on:
-  # Called by other workflows (e.g., cd-app.yml)
+  # Allow CD to call this
   workflow_call:
     inputs:
-      fe_image:
-        description: Frontend image tag to deploy
-        required: false
-        type: string
-      be_image:
-        description: Backend image tag to deploy
-        required: false
-        type: string
+      fe_image: { description: 'Frontend image tag', required: false, type: string }
+      be_image: { description: 'Backend image tag', required: false, type: string }
     secrets:
-      AZURE_CREDENTIALS:
-        required: true
-      AZURE_SUBSCRIPTION_ID:
-        required: true
-      DOCKERHUB_USERNAME:
-        required: false
-      DOCKERHUB_TOKEN:
-        required: false
+      AZURE_CREDENTIALS:     { required: true }
+      AZURE_SUBSCRIPTION_ID: { required: true }
+      DOCKERHUB_USERNAME:    { required: false }
+      DOCKERHUB_TOKEN:       { required: false }
 
-  # PRs: run fmt/validate/plan and comment the plan (no apply)
+  # PRs: plan only
   pull_request:
     paths: ['infra/terraform/**']
 
@@ -32,12 +22,12 @@ env:
 
 jobs:
   tf:
-    name: tf
     runs-on: ubuntu-latest
+    name: tf
     permissions:
       id-token: write
       contents: read
-      pull-requests: write   # needed for sticky PR comment; safe at job level
+      pull-requests: write
     defaults:
       run:
         working-directory: ${{ env.TF_ROOT }}
@@ -45,17 +35,11 @@ jobs:
       group: terraform-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
 
-    # Root variables so validate/plan/apply don't prompt
     env:
-      # Images: take inputs from caller; fall back to latest tags
       TF_VAR_fe_image: ${{ inputs.fe_image || 'anasabdullahalzahrani/three-tier-frontend:latest' }}
       TF_VAR_be_image: ${{ inputs.be_image || 'anasabdullahalzahrani/three-tier-backend:latest' }}
-
-      # Azure environment
       TF_VAR_rg_name: rg-capstone-dev
       TF_VAR_rg_location: westeurope
-
-      # Optional (if modules read DockerHub creds)
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token:    ${{ secrets.DOCKERHUB_TOKEN }}
 
@@ -105,9 +89,9 @@ jobs:
           recreate: true
           path: ${{ env.TF_ROOT }}/plan.txt
 
-      # ---------- Called flow (from CD): Plan + Apply ----------
-      - name: Plan (caller)
-        if: ${{ github.event_name == 'workflow_call' }}
+      # ---------- Non-PR (called by CD or other) : Plan + Apply ----------
+      - name: Plan (non-PR)
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           terraform plan \
             -input=false \
@@ -115,6 +99,6 @@ jobs:
             -var "subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -out=tfplan.bin
 
-      - name: Apply (caller)
-        if: ${{ github.event_name == 'workflow_call' }}
+      - name: Apply (non-PR)
+        if: ${{ github.event_name != 'pull_request' }}
         run: terraform apply -input=false -auto-approve tfplan.bin
