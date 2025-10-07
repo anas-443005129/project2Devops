@@ -6,7 +6,6 @@ on:
     paths:
       - "backend/**"
       - "frontend/**"
-      - "infra/terraform/**"
       - ".github/workflows/cd-app.yml"
   workflow_dispatch:
 
@@ -28,13 +27,14 @@ jobs:
       be_image: ${{ steps.outs.outputs.be_image }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - uses: docker/setup-buildx-action@v3
 
-      # Backend image (Dockerfile builds with Maven)
       - name: Build & push backend
         uses: docker/build-push-action@v6
         with:
@@ -46,7 +46,6 @@ jobs:
             ${{ env.DOCKER_ORG }}/${{ env.BE_REPO }}:latest
           provenance: false
 
-      # Frontend image (build arg keeps AGW path routing simple)
       - name: Build & push frontend
         uses: docker/build-push-action@v6
         with:
@@ -72,6 +71,7 @@ jobs:
       fe_image: ${{ needs.build_and_push.outputs.fe_image }}
       be_image: ${{ needs.build_and_push.outputs.be_image }}
     secrets:
-      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      AZURE_CREDENTIALS:      ${{ secrets.AZURE_CREDENTIALS }}
+      AZURE_SUBSCRIPTION_ID:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      DOCKERHUB_USERNAME:     ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN:        ${{ secrets.DOCKERHUB_TOKEN }}
