@@ -34,12 +34,14 @@ variable "registry_password" {
 }
 variable "fe_image" {
   type        = string
-  description = "Frontend image (repo:tag)"
+  description = "Frontend container image"
+  default     = "anasabdullahalzahrani/three-tier-frontend:latest"
 }
 
 variable "be_image" {
   type        = string
-  description = "Backend image (repo:tag)"
+  description = "Backend container image"
+  default     = "anasabdullahalzahrani/three-tier-backend:latest"
 }
 
 variable "dockerhub_username" {

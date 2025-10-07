@@ -55,6 +55,9 @@ module "aci_be" {
   subnet_id = module.vnet.subnet_aci_backend_id
   image     = var.be_image
   ports     = [8080]
+  fe_image  = var.fe_image
+  be_image  = var.be_image
+
 
   registry_username = var.dockerhub_username
   registry_password = var.dockerhub_token
