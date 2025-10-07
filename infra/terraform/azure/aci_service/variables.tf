@@ -31,7 +31,7 @@ variable "registry_password" {
   type      = string
   default   = ""
   sensitive = true
-} 
+}
 variable "fe_image" {
   type        = string
   description = "Frontend image (repo:tag)"
@@ -43,11 +43,11 @@ variable "be_image" {
 }
 
 variable "dockerhub_username" {
-  type        = string
-  default     = "" 
+  type    = string
+  default = ""
 }
 
 variable "dockerhub_token" {
-  type        = string
-  default     = "" 
+  type    = string
+  default = ""
 }
