@@ -31,4 +31,23 @@ variable "registry_password" {
   type      = string
   default   = ""
   sensitive = true
-} # a Docker Hub access token (not your password)
+} 
+variable "fe_image" {
+  type        = string
+  description = "Frontend image (repo:tag)"
+}
+
+variable "be_image" {
+  type        = string
+  description = "Backend image (repo:tag)"
+}
+
+variable "dockerhub_username" {
+  type        = string
+  default     = "" 
+}
+
+variable "dockerhub_token" {
+  type        = string
+  default     = "" 
+}
