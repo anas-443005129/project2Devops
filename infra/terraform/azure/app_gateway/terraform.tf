@@ -1,3 +1,4 @@
+# Public IP for the Application Gateway
 resource "azurerm_public_ip" "pip" {
   name                = "${var.name}-pip"
   location            = var.location
@@ -6,6 +7,7 @@ resource "azurerm_public_ip" "pip" {
   allocation_method   = "Static"
 }
 
+# Application Gateway
 resource "azurerm_application_gateway" "agw" {
   name                = var.name
   location            = var.location
@@ -44,12 +46,14 @@ resource "azurerm_application_gateway" "agw" {
   }
 
   # -------------------- HTTP settings --------------------
+  # NOTE: pick_host_name_from_backend_address = true
+  #       so the Host header will be the backend address (IP/FQDN).
   backend_http_settings {
     name                                = "http-frontend"
     protocol                            = "Http"
     port                                = var.fe_port
     cookie_based_affinity               = "Disabled"
-    pick_host_name_from_backend_address = false
+    pick_host_name_from_backend_address = true
     request_timeout                     = 30
     probe_name                          = "probe-frontend"
   }
@@ -59,28 +63,34 @@ resource "azurerm_application_gateway" "agw" {
     protocol                            = "Http"
     port                                = var.be_port
     cookie_based_affinity               = "Disabled"
-    pick_host_name_from_backend_address = false
+    pick_host_name_from_backend_address = true
     request_timeout                     = 30
     probe_name                          = "probe-backend"
   }
 
-  # -------------------- Probes (no host header for IP targets) --------------------
+  # -------------------- Probes --------------------
+  # FIX: set pick_host_name_from_backend_http_settings = true
+  # so the probe uses the Host header from the associated HTTP settings.
   probe {
-    name                = "probe-frontend"
-    protocol            = "Http"
-    path                = "/"
-    interval            = 30
-    timeout             = 30
-    unhealthy_threshold = 3
+    name                                     = "probe-frontend"
+    protocol                                 = "Http"
+    path                                     = "/"
+    port                                     = var.fe_port
+    interval                                 = 30
+    timeout                                  = 30
+    unhealthy_threshold                      = 3
+    pick_host_name_from_backend_http_settings = true
   }
 
   probe {
-    name                = "probe-backend"
-    protocol            = "Http"
-    path                = "/api/health"
-    interval            = 30
-    timeout             = 30
-    unhealthy_threshold = 3
+    name                                     = "probe-backend"
+    protocol                                 = "Http"
+    path                                     = "/api/health"
+    port                                     = var.be_port
+    interval                                 = 30
+    timeout                                  = 30
+    unhealthy_threshold                      = 3
+    pick_host_name_from_backend_http_settings = true
   }
 
   # -------------------- Listener / rules --------------------
