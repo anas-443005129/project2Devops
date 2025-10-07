@@ -1,11 +1,29 @@
 name: Terraform (Azure)
 
 on:
-  workflow_dispatch: {}
+  # Allow other workflows to call this one
+  workflow_call:
+    inputs:
+      fe_image:
+        description: 'Frontend image tag to deploy'
+        required: false
+        type: string
+      be_image:
+        description: 'Backend image tag to deploy'
+        required: false
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+
+  # Keep PR plans for review
   pull_request:
-    paths: ['infra/terraform/**']
-  push:
-    branches: [main]
     paths: ['infra/terraform/**']
 
 permissions:
@@ -24,14 +42,19 @@ jobs:
       run:
         working-directory: ${{ env.TF_ROOT }}
 
-    # Provide required TF variables (root vars) so validate/plan won't prompt
+    # Root variables needed for validate/plan/apply
     env:
+      # Prefer inputs from caller; fall back to "latest"
+      TF_VAR_fe_image: ${{ inputs.fe_image || 'anasabdullahalzahrani/three-tier-frontend:latest' }}
+      TF_VAR_be_image: ${{ inputs.be_image || 'anasabdullahalzahrani/three-tier-backend:latest' }}
+
+      # Static environment values
+      TF_VAR_rg_name:     rg-capstone-dev
+      TF_VAR_rg_location: westeurope
+
+      # Optional: expose DockerHub creds to TF if your modules read them
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token:    ${{ secrets.DOCKERHUB_TOKEN }}
-      TF_VAR_fe_image:           anasabdullahalzahrani/three-tier-frontend:latest
-      TF_VAR_be_image:           anasabdullahalzahrani/three-tier-backend:latest
-      TF_VAR_rg_name:            rg-capstone-dev
-      TF_VAR_rg_location:        westeurope
 
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +85,6 @@ jobs:
         run: terraform validate -no-color
 
       # -------- Plans --------
-
       - name: Plan (PR)
         if: github.event_name == 'pull_request'
         run: |
@@ -80,8 +102,9 @@ jobs:
           recreate: true
           path: ${{ env.TF_ROOT }}/plan.txt
 
-      - name: Plan (push)
-        if: github.event_name == 'push'
+      # When called by another workflow → Plan+Apply
+      - name: Plan (caller)
+        if: github.event_name == 'workflow_call'
         run: |
           terraform plan \
             -input=false \
@@ -89,6 +112,6 @@ jobs:
             -var "subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -out=tfplan.bin
 
-      - name: Apply (push)
-        if: github.event_name == 'push'
+      - name: Apply (caller)
+        if: github.event_name == 'workflow_call'
         run: terraform apply -input=false -auto-approve tfplan.bin
