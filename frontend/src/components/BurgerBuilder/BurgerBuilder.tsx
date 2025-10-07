@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useBurgerBuilder } from '../../context/BurgerBuilderContext';
 import { useCart } from '../../context/CartContext';
 import { getIngredients } from '../../services/api';
@@ -23,35 +23,8 @@ const BurgerBuilder: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadIngredients();
-  }, []);
-
-  const loadIngredients = async () => {
-    try {
-      setLoading(true);
-      const data = await getIngredients();
-      // Handle both grouped format (legacy) and flat list format (current backend)
-      const allIngredients = Array.isArray(data) 
-        ? data 
-        : [
-            ...data.buns,
-            ...data.patties,
-            ...data.toppings,
-            ...data.sauces,
-          ];
-      setIngredients(allIngredients);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load ingredients. Using sample data for demo.');
-      // Set sample data for demo purposes
-      setSampleIngredients();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const setSampleIngredients = () => {
+  // Stable helper for demo data (keeps ESLint happy)
+  const setSampleIngredients = useCallback(() => {
     const sampleIngredients = [
       { id: 1, name: 'Sesame Bun', category: 'buns' as const, price: 1.5, imageUrl: '' },
       { id: 2, name: 'Whole Wheat Bun', category: 'buns' as const, price: 1.8, imageUrl: '' },
@@ -69,7 +42,30 @@ const BurgerBuilder: React.FC = () => {
       { id: 14, name: 'BBQ Sauce', category: 'sauces' as const, price: 0.3, imageUrl: '' },
     ];
     setIngredients(sampleIngredients);
-  };
+  }, [setIngredients]);
+
+  // Load ingredients (stable identity; safe for deps)
+  const loadIngredients = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getIngredients();
+      // Handle both grouped format (legacy) and flat list format (current backend)
+      const allIngredients = Array.isArray(data)
+        ? data
+        : [...data.buns, ...data.patties, ...data.toppings, ...data.sauces];
+      setIngredients(allIngredients);
+      setError(null);
+    } catch (_err) {
+      setError('Failed to load ingredients. Using sample data for demo.');
+      setSampleIngredients();
+    } finally {
+      setLoading(false);
+    }
+  }, [setIngredients, setSampleIngredients]);
+
+  useEffect(() => {
+    loadIngredients();
+  }, [loadIngredients]);
 
   const handleAddToCart = () => {
     if (layers.length === 0) {
@@ -108,7 +104,7 @@ const BurgerBuilder: React.FC = () => {
       {notification && (
         <div className="notification">{notification}</div>
       )}
-      
+
       {error && (
         <div className="error-banner">
           ⚠️ {error}
@@ -133,13 +129,13 @@ const BurgerBuilder: React.FC = () => {
             getIngredientById={getIngredientById}
             onRemoveLayer={removeLayer}
           />
-          
+
           <div className="builder-actions">
             <div className="price-display">
               <span className="price-label">Total:</span>
               <span className="price-value">${getTotalPrice().toFixed(2)}</span>
             </div>
-            
+
             <div className="action-buttons">
               <button
                 className="clear-button"
@@ -164,4 +160,3 @@ const BurgerBuilder: React.FC = () => {
 };
 
 export default BurgerBuilder;
-
