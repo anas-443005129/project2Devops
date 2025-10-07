@@ -1,23 +1,27 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
+import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
+import axios, { type AxiosInstance, type AxiosStatic } from 'axios';
 import type { Ingredient, CartItem, Order, IngredientsResponse } from '../types';
 
-// Mock axios
+// --- Mock axios and make create() return our mocked instance ---
 vi.mock('axios');
+const axiosMock = axios as unknown as Mocked<AxiosStatic>;
 
-const mockedAxios = vi.mocked(axios, true);
+// Separate mocks so we can call .mockResolvedValue on them
+const getMock = vi.fn();
+const postMock = vi.fn();
+const deleteMock = vi.fn();
 
-// Create a mock axios instance
+// Axios-like instance that uses our mocks
 const mockAxiosInstance = {
-  get: vi.fn(),
-  post: vi.fn(),
-  delete: vi.fn(),
-};
+  get: getMock,
+  post: postMock,
+  delete: deleteMock,
+} as unknown as AxiosInstance;
 
-// Setup axios.create to return our mock instance
-mockedAxios.create.mockReturnValue(mockAxiosInstance as any);
+// Make axios.create return our mocked instance
+axiosMock.create.mockReturnValue(mockAxiosInstance);
 
-// Import after mocking
+// Import after mocking so the module uses the mocked axios instance
 const {
   getIngredients,
   getIngredientsByCategory,
@@ -42,41 +46,31 @@ describe('API Service', () => {
         sauces: [],
       };
 
-      mockAxiosInstance.get.mockResolvedValue({ data: mockResponse });
+      getMock.mockResolvedValue({ data: mockResponse });
 
       const result = await getIngredients();
       expect(result).toEqual(mockResponse);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/ingredients');
+      expect(getMock).toHaveBeenCalledWith('/api/ingredients');
     });
   });
 
   describe('getIngredientsByCategory', () => {
     it('should fetch ingredients by category', async () => {
       const mockIngredients: Ingredient[] = [
-        {
-          id: 1,
-          name: 'Beef Patty',
-          category: 'patties',
-          price: 5.99,
-          imageUrl: 'patty.jpg',
-        },
+        { id: 1, name: 'Beef Patty', category: 'patties', price: 5.99, imageUrl: 'patty.jpg' },
       ];
 
-      mockAxiosInstance.get.mockResolvedValue({ data: mockIngredients });
+      getMock.mockResolvedValue({ data: mockIngredients });
 
       const result = await getIngredientsByCategory('patties');
       expect(result).toEqual(mockIngredients);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/ingredients/patties');
+      expect(getMock).toHaveBeenCalledWith('/api/ingredients/patties');
     });
   });
 
   describe('addToCart', () => {
     it('should add item to cart', async () => {
-      const mockItem = {
-        sessionId: 'session_123',
-        ingredientId: 1,
-        quantity: 1,
-      };
+      const mockItem = { sessionId: 'session_123', ingredientId: 1, quantity: 1 };
 
       const mockResponse: CartItem = {
         id: 1,
@@ -85,11 +79,11 @@ describe('API Service', () => {
         quantity: mockItem.quantity,
       };
 
-      mockAxiosInstance.post.mockResolvedValue({ data: mockResponse });
+      postMock.mockResolvedValue({ data: mockResponse });
 
       const result = await addToCart(mockItem);
       expect(result).toEqual(mockResponse);
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/cart/items', mockItem);
+      expect(postMock).toHaveBeenCalledWith('/api/cart/items', mockItem);
     });
   });
 
@@ -97,19 +91,14 @@ describe('API Service', () => {
     it('should fetch cart items by session id', async () => {
       const sessionId = 'test_session_123';
       const mockCart: CartItem[] = [
-        {
-          id: 1,
-          layers: [{ ingredientId: 1, quantity: 2 }],
-          totalPrice: 10.99,
-          quantity: 1,
-        },
+        { id: 1, layers: [{ ingredientId: 1, quantity: 2 }], totalPrice: 10.99, quantity: 1 },
       ];
 
-      mockAxiosInstance.get.mockResolvedValue({ data: mockCart });
+      getMock.mockResolvedValue({ data: mockCart });
 
       const result = await getCart(sessionId);
       expect(result).toEqual(mockCart);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith(`/api/cart/${sessionId}`);
+      expect(getMock).toHaveBeenCalledWith(`/api/cart/${sessionId}`);
     });
   });
 
@@ -117,10 +106,10 @@ describe('API Service', () => {
     it('should remove item from cart', async () => {
       const itemId = 1;
 
-      mockAxiosInstance.delete.mockResolvedValue({});
+      deleteMock.mockResolvedValue({});
 
       await removeCartItem(itemId);
-      expect(mockAxiosInstance.delete).toHaveBeenCalledWith(`/api/cart/items/${itemId}`);
+      expect(deleteMock).toHaveBeenCalledWith(`/api/cart/items/${itemId}`);
     });
   });
 
@@ -145,11 +134,11 @@ describe('API Service', () => {
         createdAt: new Date().toISOString(),
       };
 
-      mockAxiosInstance.post.mockResolvedValue({ data: mockOrder });
+      postMock.mockResolvedValue({ data: mockOrder });
 
       const result = await createOrder(orderData);
       expect(result).toEqual(mockOrder);
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/orders', orderData);
+      expect(postMock).toHaveBeenCalledWith('/api/orders', orderData);
     });
   });
 
@@ -167,12 +156,11 @@ describe('API Service', () => {
         createdAt: new Date().toISOString(),
       };
 
-      mockAxiosInstance.get.mockResolvedValue({ data: mockOrder });
+      getMock.mockResolvedValue({ data: mockOrder });
 
       const result = await getOrder(orderId);
       expect(result).toEqual(mockOrder);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith(`/api/orders/${orderId}`);
+      expect(getMock).toHaveBeenCalledWith(`/api/orders/${orderId}`);
     });
   });
 });
-

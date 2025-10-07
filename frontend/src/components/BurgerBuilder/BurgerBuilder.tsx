@@ -55,10 +55,11 @@ const BurgerBuilder: React.FC = () => {
         : [...data.buns, ...data.patties, ...data.toppings, ...data.sauces];
       setIngredients(allIngredients);
       setError(null);
-    } catch (_err) {
-      setError('Failed to load ingredients. Using sample data for demo.');
-      setSampleIngredients();
-    } finally {
+    } catch {
+  setError('Failed to load ingredients. Using sample data for demo.');
+  setSampleIngredients();
+} finally {
+
       setLoading(false);
     }
   }, [setIngredients, setSampleIngredients]);
