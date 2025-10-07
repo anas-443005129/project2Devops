@@ -1,15 +1,15 @@
 name: Terraform (Azure)
 
 on:
-  # Allow other workflows to call this one
+  # Called by other workflows (e.g., cd-app.yml)
   workflow_call:
     inputs:
       fe_image:
-        description: 'Frontend image tag to deploy'
+        description: Frontend image tag to deploy
         required: false
         type: string
       be_image:
-        description: 'Backend image tag to deploy'
+        description: Backend image tag to deploy
         required: false
         type: string
     secrets:
@@ -22,14 +22,9 @@ on:
       DOCKERHUB_TOKEN:
         required: false
 
-  # Keep PR plans for review
+  # PRs: run fmt/validate/plan and comment the plan (no apply)
   pull_request:
     paths: ['infra/terraform/**']
-
-permissions:
-  id-token: write
-  contents: read
-  pull-requests: write
 
 env:
   TF_ROOT: infra/terraform
@@ -37,22 +32,30 @@ env:
 
 jobs:
   tf:
+    name: tf
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write   # needed for sticky PR comment; safe at job level
     defaults:
       run:
         working-directory: ${{ env.TF_ROOT }}
+    concurrency:
+      group: terraform-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
 
-    # Root variables needed for validate/plan/apply
+    # Root variables so validate/plan/apply don't prompt
     env:
-      # Prefer inputs from caller; fall back to "latest"
+      # Images: take inputs from caller; fall back to latest tags
       TF_VAR_fe_image: ${{ inputs.fe_image || 'anasabdullahalzahrani/three-tier-frontend:latest' }}
       TF_VAR_be_image: ${{ inputs.be_image || 'anasabdullahalzahrani/three-tier-backend:latest' }}
 
-      # Static environment values
-      TF_VAR_rg_name:     rg-capstone-dev
+      # Azure environment
+      TF_VAR_rg_name: rg-capstone-dev
       TF_VAR_rg_location: westeurope
 
-      # Optional: expose DockerHub creds to TF if your modules read them
+      # Optional (if modules read DockerHub creds)
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token:    ${{ secrets.DOCKERHUB_TOKEN }}
 
@@ -84,9 +87,9 @@ jobs:
       - name: Validate
         run: terraform validate -no-color
 
-      # -------- Plans --------
+      # ---------- PR flow: Plan only + comment ----------
       - name: Plan (PR)
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           terraform plan \
             -input=false \
@@ -96,15 +99,15 @@ jobs:
             -no-color | tee plan.txt
 
       - name: Comment plan (PR)
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           recreate: true
           path: ${{ env.TF_ROOT }}/plan.txt
 
-      # When called by another workflow → Plan+Apply
+      # ---------- Called flow (from CD): Plan + Apply ----------
       - name: Plan (caller)
-        if: github.event_name == 'workflow_call'
+        if: ${{ github.event_name == 'workflow_call' }}
         run: |
           terraform plan \
             -input=false \
@@ -113,5 +116,5 @@ jobs:
             -out=tfplan.bin
 
       - name: Apply (caller)
-        if: github.event_name == 'workflow_call'
+        if: ${{ github.event_name == 'workflow_call' }}
         run: terraform apply -input=false -auto-approve tfplan.bin
