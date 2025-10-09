@@ -1,29 +1,21 @@
 name: Terraform (Azure)
 
 on:
-  # Allow CD to call this
-  workflow_call:
-    inputs:
-      fe_image: { description: 'Frontend image tag', required: false, type: string }
-      be_image: { description: 'Backend image tag', required: false, type: string }
-    secrets:
-      AZURE_CREDENTIALS:     { required: true }
-      AZURE_SUBSCRIPTION_ID: { required: true }
-      DOCKERHUB_USERNAME:    { required: false }
-      DOCKERHUB_TOKEN:       { required: false }
-
-  # PRs: plan only
   pull_request:
     paths: ['infra/terraform/**']
+  push:
+    branches: [main]
+    paths: ['infra/terraform/**']
+  workflow_dispatch: {}
 
 env:
   TF_ROOT: infra/terraform
   TF_VERSION: '1.8.5'
+  TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.tf-plugin-cache
 
 jobs:
   tf:
     runs-on: ubuntu-latest
-    name: tf
     permissions:
       id-token: write
       contents: read
@@ -34,12 +26,10 @@ jobs:
     concurrency:
       group: terraform-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
-
     env:
+      # Make sure your TF uses these (wire fe_image/be_image vars in root)
       TF_VAR_fe_image: ${{ inputs.fe_image || 'anasabdullahalzahrani/three-tier-frontend:latest' }}
       TF_VAR_be_image: ${{ inputs.be_image || 'anasabdullahalzahrani/three-tier-backend:latest' }}
-      TF_VAR_rg_name: rg-capstone-dev
-      TF_VAR_rg_location: westeurope
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token:    ${{ secrets.DOCKERHUB_TOKEN }}
 
@@ -51,13 +41,25 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Show Azure account
+        run: az account show
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Init
-        run: terraform init -input=false
+      - name: Prepare plugin cache
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
+          key: tf-${{ env.TF_VERSION }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+
+      - name: Init (remote backend)
+        run: terraform init -input=false -backend-config=backend.hcl
 
       - name: Fmt check
         run: |
@@ -71,13 +73,13 @@ jobs:
       - name: Validate
         run: terraform validate -no-color
 
-      # ---------- PR flow: Plan only + comment ----------
       - name: Plan (PR)
         if: ${{ github.event_name == 'pull_request' }}
         run: |
+          set -euo pipefail
           terraform plan \
             -input=false \
-            -refresh=false \
+            -refresh=true \
             -parallelism=20 \
             -var "subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -no-color | tee plan.txt
@@ -89,10 +91,10 @@ jobs:
           recreate: true
           path: ${{ env.TF_ROOT }}/plan.txt
 
-      # ---------- Non-PR (called by CD or other) : Plan + Apply ----------
       - name: Plan (non-PR)
         if: ${{ github.event_name != 'pull_request' }}
         run: |
+          set -euo pipefail
           terraform plan \
             -input=false \
             -parallelism=20 \
@@ -102,3 +104,34 @@ jobs:
       - name: Apply (non-PR)
         if: ${{ github.event_name != 'pull_request' }}
         run: terraform apply -input=false -auto-approve tfplan.bin
+
+      # ---- Proof that App Gateway backends are healthy ----
+      # Make sure you have root outputs: rg_name, appgw_name, appgw_public_ip
+      - name: Dump Terraform outputs
+        if: ${{ github.event_name != 'pull_request' }}
+        run: terraform output -json | tee tf-outputs.json
+
+      - name: Backend health (AGW)
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          set -euo pipefail
+          RG=$(terraform output -raw rg_name)
+          AGW=$(terraform output -raw appgw_name)
+          az network application-gateway show-backend-health -g "$RG" -n "$AGW" \
+            --query "backendAddressPools[].backendHttpSettingsCollection[].servers" -o table | tee agw-health.txt
+
+      - name: Fail if any backend unhealthy
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          set -euo pipefail
+          RG=$(terraform output -raw rg_name)
+          AGW=$(terraform output -raw appgw_name)
+          az network application-gateway show-backend-health -g "$RG" -n "$AGW" -o json \
+            | jq -e '([..|objects|select(has("health")).health] | all(.=="Healthy"))' >/dev/null
+
+      - name: Curl public listener (HTTP 80)
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          set -euo pipefail
+          IP=$(terraform output -raw appgw_public_ip)
+          curl -I --max-time 10 "http://$IP"

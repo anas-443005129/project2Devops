@@ -1,78 +1,166 @@
-# ------------------ Resource Group ------------------
-module "rg" {
-  source   = "./azure/resourcegroup"
-  rg_name  = var.rg_name     # e.g. "rg-capstone-dev"
-  location = var.rg_location # e.g. "westeurope"
+
+module "resource_group" {
+  source   = "./modules/resource_group"
+  name     = var.resource_group_name
+  location = var.location
+  tags     = var.tags
 }
 
-# ------------------ VNet (with ACI delegations) ------------------
 module "vnet" {
-  source   = "./azure/Vnet"
-  rg_name  = module.rg.rg_name
-  location = module.rg.rg_location
-
-  vnet_name     = "anas-vnet"
-  address_space = ["10.0.0.0/16"]
-
-  aci_frontend_cidr = "10.0.1.0/24"
-  aci_backend_cidr  = "10.0.2.0/24"
-  agw_subnet_cidr   = "10.0.3.0/24"
+  source              = "./modules/virtual_network"
+  name                = var.vnet_name
+  resource_group_name = module.resource_group.resource_group.name
+  location            = var.location
+  address_space       = var.address_space
+  tags                = var.tags
 }
 
-# ------------------ NSGs for ACI subnets ------------------
-module "nsg" {
-  source            = "./azure/nsg"
-  rg_name           = module.rg.rg_name
-  location          = module.rg.rg_location
-  agw_subnet_prefix = module.vnet.subnet_agw_prefix
-  aci_fe_subnet_id  = module.vnet.subnet_aci_frontend_id
-  aci_be_subnet_id  = module.vnet.subnet_aci_backend_id
+module "subnets" {
+  source              = "./modules/subnets"
+  for_each            = var.subnet
+  name                = each.key
+  resource_group_name = module.resource_group.resource_group.name
+  vnet_name           = module.vnet.virtual_network.name
+  address_prefixes    = each.value.address_space
 }
 
-# ------------------ ACI: Frontend ------------------
-module "aci_fe" {
-  source    = "./azure/aci_service"
-  name      = "fe-aci"
-  rg_name   = module.rg.rg_name
-  location  = module.rg.rg_location
-  subnet_id = module.vnet.subnet_aci_frontend_id
-  image     = var.fe_image
-  ports     = [80]
 
-  # no cycle with AppGW – FE can call /api/* and the gateway routes it
-  env = { VITE_API_BASE_URL = "/" }
 
-  # only needed if Docker Hub is private / rate-limiting you
-  registry_username = var.dockerhub_username
-  registry_password = var.dockerhub_token
+module "log_analytics" {
+  source              = "./modules/log_analytics"
+  name                = var.log_analytics_workspace_name
+  location            = var.location
+  resource_group_name = module.resource_group.resource_group.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  tags                = var.tags
 }
 
-module "aci_be" {
-  source    = "./azure/aci_service"
-  name      = "be-aci"
-  rg_name   = module.rg.rg_name
-  location  = module.rg.rg_location
-  subnet_id = module.vnet.subnet_aci_backend_id
-  image     = var.be_image
-  ports     = [8080]
-  fe_image  = var.fe_image
-  be_image  = var.be_image
+module "sql_server" {
+  source              = "./modules/sql_server"
+  server_name         = var.sql_server_name
+  resource_group_name = module.resource_group.resource_group.name
+  location            = var.location
+  admin_username      = var.sql_admin_username
+  admin_password      = var.sql_admin_password
+  database_name       = var.sql_database_name
+  subnet_id           = module.subnets["db_subnet"].subnet.id
+  virtual_network_id  = module.vnet.virtual_network.id
+  tags                = var.tags
+  depends_on = [
+    module.resource_group,
+    module.vnet,
+    module.subnets # for the Private Endpoint subnet
+  ]
 
-
-  registry_username = var.dockerhub_username
-  registry_password = var.dockerhub_token
 }
 
-# ------------------ Application Gateway ------------------
-module "app_gateway" {
-  source    = "./azure/app_gateway"
-  name      = "agw-capstone"
-  rg_name   = module.rg.rg_name
-  location  = module.rg.rg_location
-  subnet_id = module.vnet.subnet_agw_id
 
-  fe_backend_ips = [module.aci_fe.ip] # ACI FE private IP
-  be_backend_ips = [module.aci_be.ip] # ACI BE private IP
-  fe_port        = 80
-  be_port        = 8080
+
+module "container_app_environment" {
+  source                         = "./modules/container_app_environment"
+  name                           = var.container_app_environment_name
+  location                       = var.location
+  resource_group_name            = module.resource_group.resource_group.name
+  log_analytics_workspace_id     = module.log_analytics.id
+  infrastructure_subnet_id       = module.subnets["app_subnet"].subnet.id
+  internal_load_balancer_enabled = true
+  tags                           = var.tags
+  depends_on = [
+    module.resource_group,
+    module.vnet,
+    module.subnets,
+    module.log_analytics
+  ]
+
+}
+
+
+resource "azurerm_public_ip" "appgw" {
+  name                = "${var.app_gateway_name}-pip"
+  resource_group_name = module.resource_group.resource_group.name
+  location            = var.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = var.tags
+}
+
+
+module "container_apps" {
+  source   = "./modules/container_apps"
+  for_each = var.container_apps
+
+  name                         = "${each.key}-app"
+  container_name               = each.key
+  container_app_environment_id = module.container_app_environment.id
+  resource_group_name          = module.resource_group.resource_group.name
+
+  image  = each.value.image
+  cpu    = each.value.cpu
+  memory = each.value.memory
+
+  min_replicas = each.value.min_replicas
+  max_replicas = each.value.max_replicas
+
+  ingress_enabled            = true
+  external_enabled           = false           
+  target_port                = each.value.target_port
+  allow_insecure_connections = false
+
+  env_vars = merge(
+    each.value.env_vars,
+    each.key == "backend" ? {
+      DB_HOST              = module.sql_server.server_private_fqdn
+      DB_PORT              = "1433"
+      DB_NAME              = module.sql_server.database_name
+      DB_USERNAME          = var.sql_admin_username
+      DB_PASSWORD          = var.sql_admin_password
+      DB_DRIVER            = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+      CORS_ALLOWED_ORIGINS = "http://${azurerm_public_ip.appgw.ip_address}"
+    } : {},
+    each.key == "frontend" ? {
+      VITE_API_BASE_URL = "http://${azurerm_public_ip.appgw.ip_address}"
+    } : {}
+  )
+
+  ip_security_restrictions = [
+    {
+      name             = "AllowAppGatewayOnly"
+      description      = "Only allow traffic from Application Gateway public IP"
+      action           = "Allow"
+      ip_address_range = module.subnets["appgw_subnet"].subnet.address_prefixes[0]
+    }
+  ]
+
+  tags = var.tags
+
+  depends_on = [
+    module.container_app_environment,
+    module.sql_server,
+    azurerm_public_ip.appgw
+  ]
+
+
+}
+
+module "application_gateway" {
+  source              = "./modules/application_gateway"
+  name                = var.app_gateway_name
+  resource_group_name = module.resource_group.resource_group.name
+  location            = var.location
+  subnet_id           = module.subnets["appgw_subnet"].subnet.id
+  sku                 = var.app_gateway_sku
+
+  public_ip_id = azurerm_public_ip.appgw.id
+
+  frontend_fqdn = module.container_apps["frontend"].fqdn
+  backend_fqdn  = module.container_apps["backend"].fqdn
+
+  frontend_health_path = "/"
+  backend_health_path  = "/actuator/health"
+
+  tags = var.tags
+
+  depends_on = [module.container_apps,
+  azurerm_public_ip.appgw]
 }
