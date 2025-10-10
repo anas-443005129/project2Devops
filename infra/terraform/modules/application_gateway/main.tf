@@ -16,11 +16,13 @@ resource "azurerm_application_gateway" "main" {
     subnet_id = var.subnet_id
   }
 
+  # Listener ports
   frontend_port {
     name = "http-port"
     port = 80
   }
 
+  # (Keeping https-port defined is harmless; not used in this "quick & dirty" mode)
   frontend_port {
     name = "https-port"
     port = 443
@@ -31,6 +33,7 @@ resource "azurerm_application_gateway" "main" {
     public_ip_address_id = var.public_ip_id
   }
 
+  # Backends -> use public ACA FQDNs (external_enabled=true)
   backend_address_pool {
     name  = "frontend-backend-pool"
     fqdns = [var.frontend_fqdn]
@@ -41,73 +44,56 @@ resource "azurerm_application_gateway" "main" {
     fqdns = [var.backend_fqdn]
   }
 
+  # --- HTTP (not HTTPS) to ACA; port 80; use Host header from FQDN ---
   backend_http_settings {
-    name                  = "frontend-http-settings"
-    cookie_based_affinity = "Disabled"
-    port                  = 443
-    protocol              = "Https"
-    request_timeout       = 60
-    probe_name            = "frontend-health-probe"
-    pick_host_name_from_backend_address = true
+    name                                  = "frontend-http-settings"
+    cookie_based_affinity                 = "Disabled"
+    port                                  = 80
+    protocol                              = "Http"
+    request_timeout                       = 60
+    probe_name                            = "frontend-health-probe"
+    pick_host_name_from_backend_address   = true
   }
 
-  # Backend HTTP Settings for Backend API
   backend_http_settings {
-    name                  = "backend-http-settings"
-    cookie_based_affinity = "Disabled"
-    port                  = 443
-    protocol              = "Https"
-    request_timeout       = 60
-    probe_name            = "backend-health-probe"
-    pick_host_name_from_backend_address = true
+    name                                  = "backend-http-settings"
+    cookie_based_affinity                 = "Disabled"
+    port                                  = 80
+    protocol                              = "Http"
+    request_timeout                       = 60
+    probe_name                            = "backend-health-probe"
+    pick_host_name_from_backend_address   = true
   }
 
 
-  rewrite_rule_set {
-    name = "api-rewrite-rules"
-    
-    rewrite_rule {
-      name          = "strip-api-prefix"
-      rule_sequence = 100
-      
-      condition {
-        variable    = "var_uri_path"
-        pattern     = "^/api/(.*)"
-        ignore_case = true
-      }
-      
-      url {
-        path = "/{var_uri_path_1}"
-      }
+  # --- Probes over HTTP (not HTTPS) ---
+  probe {
+    name                                      = "frontend-health-probe"
+    protocol                                  = "Http"
+    path                                      = "/"
+    interval                                  = 30
+    timeout                                   = 30
+    unhealthy_threshold                       = 3
+    pick_host_name_from_backend_http_settings = true
+    match {
+      status_code = ["200-399"]
     }
   }
 
   probe {
-  name                                      = "frontend-health-probe"
-  protocol                                  = "Https"
-  path                                      = "/"                 # ← your choice
-  interval                                  = 30
-  timeout                                   = 30
-  unhealthy_threshold                       = 3
-  pick_host_name_from_backend_http_settings = true
-  match {
-    status_code = ["200-399"]
+    name                                      = "backend-health-probe"
+    protocol                                  = "Http"
+    path                                      = "/api/ingredients"
+    interval                                  = 30
+    timeout                                   = 30
+    unhealthy_threshold                       = 3
+    pick_host_name_from_backend_http_settings = true
+    match {
+      status_code = ["200-399"]
+    }
   }
-}
 
-probe {
-  name        = "backend-health-probe"
-  protocol    = "Https"
-  path        = "/actuator/health"
-  interval    = 30
-  timeout     = 30
-  unhealthy_threshold = 3
-  pick_host_name_from_backend_http_settings = true
-  match {
-    status_code = ["200-399"]
-  }
-}
-
+  # Public HTTP listener
   http_listener {
     name                           = "http-listener"
     frontend_ip_configuration_name = "${var.name}-frontend-ip"
@@ -115,6 +101,7 @@ probe {
     protocol                       = "Http"
   }
 
+  # Path-based routing
   url_path_map {
     name                               = "path-based-routing"
     default_backend_address_pool_name  = "frontend-backend-pool"
@@ -137,10 +124,19 @@ probe {
   }
 
   request_routing_rule {
-    name                       = "path-based-routing-rule"
-    rule_type                  = "PathBasedRouting"
-    http_listener_name         = "http-listener"
-    url_path_map_name          = "path-based-routing"
-    priority                   = 100
+    name               = "path-based-routing-rule"
+    rule_type          = "PathBasedRouting"
+    http_listener_name = "http-listener"
+    url_path_map_name  = "path-based-routing"
+    priority           = 100
   }
+}
+resource "azurerm_monitor_diagnostic_setting" "diag" {
+  name                       = "${var.name}-diag"
+  target_resource_id         = azurerm_application_gateway.main.id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log { category = "ApplicationGatewayAccessLog" }
+  enabled_log { category = "ApplicationGatewayPerformanceLog" }
+  metric      { category = "AllMetrics" }
 }

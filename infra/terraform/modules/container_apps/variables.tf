@@ -60,19 +60,16 @@ variable "env_vars" {
 variable "ingress_enabled" {
   description = "Whether to enable ingress"
   type        = bool
-  default     = true
 }
 
 variable "allow_insecure_connections" {
   description = "Allow insecure HTTP connections"
   type        = bool
-  default     = true
 }
 
 variable "external_enabled" {
   description = "Enable external ingress"
   type        = bool
-  default     = false
 }
 
 variable "target_port" {
@@ -81,18 +78,22 @@ variable "target_port" {
 }
 
 variable "ip_security_restrictions" {
-  description = "IP security restrictions for ingress"
   type = list(object({
     name             = string
-    description      = string
-    action           = string
-    ip_address_range = string
+    description      = optional(string)
+    action           = string   # "Allow" or "Deny"
+    ip_address_range = string   # e.g., "104.45.51.226/32"
   }))
   default = []
 }
+
 
 variable "tags" {
   description = "Tags to apply to the resource"
   type        = map(string)
   default     = {}
+}
+variable "log_analytics_workspace_id" {
+  description = "LAW id for diagnostics"
+  type        = string
 }

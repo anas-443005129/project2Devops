@@ -1,15 +1,15 @@
-# .github/workflows/ci-app.yml
+
 name: CI • Build • Test
 
 on:
-  workflow_dispatch:      # <-- Manual run button in Actions tab
+  workflow_dispatch:      
   pull_request:
     branches: [ main ]
     paths:
       - "backend/**"
       - "frontend/**"
       - ".github/workflows/ci-app.yml"
-  push:                   # <-- optional: also run CI on direct pushes to main
+  push:                 
     branches: [ main ]
     paths:
       - "backend/**"

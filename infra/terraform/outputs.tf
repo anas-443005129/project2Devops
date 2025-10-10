@@ -10,7 +10,7 @@ output "rg_name" {
 }
 
 output "appgw_name" {
-  value = module.application_gateway.name   # or expose from the module's outputs
+  value = module.application_gateway.name # or expose from the module's outputs
 }
 
 output "appgw_public_ip" {

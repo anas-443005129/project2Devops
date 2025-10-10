@@ -11,8 +11,8 @@ address_space = ["10.0.0.0/16"]
 
 subnet = {
   appgw_subnet = { address_space = ["10.0.20.0/24"] }
-  app_subnet   = { address_space = ["10.0.8.0/23"] }   # was /24
-  db_subnet    = { address_space = ["10.0.12.0/24"] }  # fine for PE
+  app_subnet   = { address_space = ["10.0.8.0/23"] }  # was /24
+  db_subnet    = { address_space = ["10.0.12.0/24"] } # fine for PE
 }
 
 log_analytics_workspace_name = "capstone-log-analytics"

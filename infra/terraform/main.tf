@@ -64,7 +64,7 @@ module "container_app_environment" {
   resource_group_name            = module.resource_group.resource_group.name
   log_analytics_workspace_id     = module.log_analytics.id
   infrastructure_subnet_id       = module.subnets["app_subnet"].subnet.id
-  internal_load_balancer_enabled = true
+  internal_load_balancer_enabled = false
   tags                           = var.tags
   depends_on = [
     module.resource_group,
@@ -97,15 +97,26 @@ module "container_apps" {
 
   image  = each.value.image
   cpu    = each.value.cpu
+    log_analytics_workspace_id = module.log_analytics.id
+
   memory = each.value.memory
 
   min_replicas = each.value.min_replicas
   max_replicas = each.value.max_replicas
+  ip_security_restrictions = each.key == "backend" ? [
+    {
+      name             = "AllowFromAGW"
+      description      = "Only traffic from Application Gateway"
+      action           = "Allow"                                      # keep exactly "Allow"
+      ip_address_range = "${azurerm_public_ip.appgw.ip_address}/32"   # AGW public IP
+    }
+  ] : []
+
 
   ingress_enabled            = true
-  external_enabled           = false           
+  external_enabled           = true
   target_port                = each.value.target_port
-  allow_insecure_connections = false
+  allow_insecure_connections = true
 
   env_vars = merge(
     each.value.env_vars,
@@ -117,20 +128,16 @@ module "container_apps" {
       DB_PASSWORD          = var.sql_admin_password
       DB_DRIVER            = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
       CORS_ALLOWED_ORIGINS = "http://${azurerm_public_ip.appgw.ip_address}"
+            APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["backend"].connection_string
+
     } : {},
     each.key == "frontend" ? {
       VITE_API_BASE_URL = "http://${azurerm_public_ip.appgw.ip_address}"
+            APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["frontend"].connection_string
+
     } : {}
   )
 
-  ip_security_restrictions = [
-    {
-      name             = "AllowAppGatewayOnly"
-      description      = "Only allow traffic from Application Gateway public IP"
-      action           = "Allow"
-      ip_address_range = module.subnets["appgw_subnet"].subnet.address_prefixes[0]
-    }
-  ]
 
   tags = var.tags
 
@@ -150,6 +157,7 @@ module "application_gateway" {
   location            = var.location
   subnet_id           = module.subnets["appgw_subnet"].subnet.id
   sku                 = var.app_gateway_sku
+  log_analytics_workspace_id = module.log_analytics.id
 
   public_ip_id = azurerm_public_ip.appgw.id
 
@@ -163,4 +171,16 @@ module "application_gateway" {
 
   depends_on = [module.container_apps,
   azurerm_public_ip.appgw]
+}
+
+
+
+resource "azurerm_application_insights" "apps" {
+  for_each            = { frontend = true, backend = true }
+  name                = "${each.key}-appi"
+  location            = var.location
+  resource_group_name = module.resource_group.resource_group.name
+  application_type    = "web"
+  workspace_id        = module.log_analytics.id
+  retention_in_days   = 30
 }

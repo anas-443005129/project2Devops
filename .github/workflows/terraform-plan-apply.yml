@@ -27,7 +27,7 @@ jobs:
       group: terraform-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     env:
-      # Make sure your TF uses these (wire fe_image/be_image vars in root)
+      
       TF_VAR_fe_image: ${{ inputs.fe_image || 'anasabdullahalzahrani/three-tier-frontend:latest' }}
       TF_VAR_be_image: ${{ inputs.be_image || 'anasabdullahalzahrani/three-tier-backend:latest' }}
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
