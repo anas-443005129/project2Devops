@@ -71,6 +71,11 @@ jobs:
           key: tf-${{ env.TF_VERSION }}-${{ hashFiles('**/.terraform.lock.hcl') }}
 
       - name: Init (remote backend)
+        env:
+          ARM_CLIENT_ID:       ${{ fromJSON(secrets.AZURE_CREDENTIALS).clientId }}
+          ARM_CLIENT_SECRET:   ${{ fromJSON(secrets.AZURE_CREDENTIALS).clientSecret }}
+          ARM_TENANT_ID:       ${{ fromJSON(secrets.AZURE_CREDENTIALS).tenantId }}
+          ARM_SUBSCRIPTION_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}
         run: terraform init -input=false -backend-config=backend.hcl
 
       - name: Fmt check
@@ -86,6 +91,11 @@ jobs:
         run: terraform validate -no-color
 
       - name: Plan
+        env:
+          ARM_CLIENT_ID:       ${{ fromJSON(secrets.AZURE_CREDENTIALS).clientId }}
+          ARM_CLIENT_SECRET:   ${{ fromJSON(secrets.AZURE_CREDENTIALS).clientSecret }}
+          ARM_TENANT_ID:       ${{ fromJSON(secrets.AZURE_CREDENTIALS).tenantId }}
+          ARM_SUBSCRIPTION_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}
         run: |
           set -euo pipefail
           terraform plan \
@@ -95,6 +105,11 @@ jobs:
             -out=tfplan.bin
 
       - name: Apply
+        env:
+          ARM_CLIENT_ID:       ${{ fromJSON(secrets.AZURE_CREDENTIALS).clientId }}
+          ARM_CLIENT_SECRET:   ${{ fromJSON(secrets.AZURE_CREDENTIALS).clientSecret }}
+          ARM_TENANT_ID:       ${{ fromJSON(secrets.AZURE_CREDENTIALS).tenantId }}
+          ARM_SUBSCRIPTION_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}
         run: terraform apply -input=false -auto-approve tfplan.bin
 
       # ---- simple post-checks ----
