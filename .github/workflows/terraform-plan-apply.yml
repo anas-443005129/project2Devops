@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+      contents: write        # <— allow auto-commit
       pull-requests: write
     defaults:
       run:
@@ -78,14 +78,17 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}
         run: terraform init -input=false -backend-config=backend.hcl
 
-      - name: Fmt check
-        run: |
-          terraform fmt -check -recursive || {
-            echo "::group::fmt-diff"
-            terraform fmt -recursive -diff
-            echo "::endgroup::"
-            exit 1
-          }
+      # ---------- Auto-format & auto-commit ----------
+      - name: Terraform fmt (write)
+        run: terraform fmt -recursive
+
+      - name: Auto-commit formatted files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: terraform fmt"
+          file_pattern: '**/*.tf'
+          repository: .     # repo root (default)
+      # ------------------------------------------------
 
       - name: Validate
         run: terraform validate -no-color
