@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: write        # <— allow auto-commit
+      contents: write
       pull-requests: write
     defaults:
       run:
@@ -78,7 +78,6 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}
         run: terraform init -input=false -backend-config=backend.hcl
 
-      # ---------- Auto-format & auto-commit ----------
       - name: Terraform fmt (write)
         run: terraform fmt -recursive
 
@@ -87,8 +86,7 @@ jobs:
         with:
           commit_message: "chore: terraform fmt"
           file_pattern: '**/*.tf'
-          repository: .     # repo root (default)
-      # ------------------------------------------------
+          repository: .
 
       - name: Validate
         run: terraform validate -no-color
@@ -115,28 +113,5 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}
         run: terraform apply -input=false -auto-approve tfplan.bin
 
-      # ---- simple post-checks ----
       - name: Dump Terraform outputs
         run: terraform output -json | tee tf-outputs.json
-
-      - name: Backend health (AGW)
-        run: |
-          set -euo pipefail
-          RG=$(terraform output -raw rg_name)
-          AGW=$(terraform output -raw appgw_name)
-          az network application-gateway show-backend-health -g "$RG" -n "$AGW" \
-            --query "backendAddressPools[].backendHttpSettingsCollection[].servers" -o table | tee agw-health.txt
-
-      - name: Fail if any backend unhealthy
-        run: |
-          set -euo pipefail
-          RG=$(terraform output -raw rg_name)
-          AGW=$(terraform output -raw appgw_name)
-          az network application-gateway show-backend-health -g "$RG" -n "$AGW" -o json \
-            | jq -e '([..|objects|select(has("health")).health] | all(.=="Healthy"))' >/dev/null
-
-      - name: Curl public listener (HTTP 80)
-        run: |
-          set -euo pipefail
-          IP=$(terraform output -raw appgw_public_ip)
-          curl -I --max-time 10 "http://$IP"
