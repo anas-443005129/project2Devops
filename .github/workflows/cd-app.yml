@@ -9,6 +9,7 @@ on:
       - .github/workflows/cd-app.yml
   workflow_dispatch:
 
+# Repo-wide defaults are fine to keep read-only
 permissions:
   id-token: write
   contents: read
@@ -67,6 +68,11 @@ jobs:
 
   deploy:
     needs: build_and_push
+    # IMPORTANT: grant write so the reusable workflow can auto-format/commit
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
     uses: ./.github/workflows/terraform-plan-apply.yml
     with:
       fe_image: ${{ needs.build_and_push.outputs.fe_image }}
