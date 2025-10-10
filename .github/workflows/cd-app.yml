@@ -2,11 +2,11 @@ name: CD • Package • Push • Deploy
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
     paths:
-      - "backend/**"
-      - "frontend/**"
-      - ".github/workflows/cd-app.yml"
+      - backend/**
+      - frontend/**
+      - .github/workflows/cd-app.yml
   workflow_dispatch:
 
 permissions:
@@ -72,7 +72,7 @@ jobs:
       fe_image: ${{ needs.build_and_push.outputs.fe_image }}
       be_image: ${{ needs.build_and_push.outputs.be_image }}
     secrets:
-      AZURE_CREDENTIALS:      ${{ secrets.AZURE_CREDENTIALS }}
-      AZURE_SUBSCRIPTION_ID:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      DOCKERHUB_USERNAME:     ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN:        ${{ secrets.DOCKERHUB_TOKEN }}
+      AZURE_CREDENTIALS:     ${{ secrets.AZURE_CREDENTIALS }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      DOCKERHUB_USERNAME:    ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN:       ${{ secrets.DOCKERHUB_TOKEN }}
