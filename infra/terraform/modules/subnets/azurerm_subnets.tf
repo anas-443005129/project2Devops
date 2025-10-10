@@ -6,5 +6,5 @@ resource "azurerm_subnet" "subnet" {
 
   lifecycle { create_before_destroy = true }
 
- 
+
 }

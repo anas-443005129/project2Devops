@@ -95,9 +95,9 @@ module "container_apps" {
   container_app_environment_id = module.container_app_environment.id
   resource_group_name          = module.resource_group.resource_group.name
 
-  image  = each.value.image
-  cpu    = each.value.cpu
-    log_analytics_workspace_id = module.log_analytics.id
+  image                      = each.value.image
+  cpu                        = each.value.cpu
+  log_analytics_workspace_id = module.log_analytics.id
 
   memory = each.value.memory
 
@@ -107,8 +107,8 @@ module "container_apps" {
     {
       name             = "AllowFromAGW"
       description      = "Only traffic from Application Gateway"
-      action           = "Allow"                                      # keep exactly "Allow"
-      ip_address_range = "${azurerm_public_ip.appgw.ip_address}/32"   # AGW public IP
+      action           = "Allow"                                    # keep exactly "Allow"
+      ip_address_range = "${azurerm_public_ip.appgw.ip_address}/32" # AGW public IP
     }
   ] : []
 
@@ -121,19 +121,19 @@ module "container_apps" {
   env_vars = merge(
     each.value.env_vars,
     each.key == "backend" ? {
-      DB_HOST              = module.sql_server.server_private_fqdn
-      DB_PORT              = "1433"
-      DB_NAME              = module.sql_server.database_name
-      DB_USERNAME          = var.sql_admin_username
-      DB_PASSWORD          = var.sql_admin_password
-      DB_DRIVER            = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
-      CORS_ALLOWED_ORIGINS = "http://${azurerm_public_ip.appgw.ip_address}"
-            APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["backend"].connection_string
+      DB_HOST                               = module.sql_server.server_private_fqdn
+      DB_PORT                               = "1433"
+      DB_NAME                               = module.sql_server.database_name
+      DB_USERNAME                           = var.sql_admin_username
+      DB_PASSWORD                           = var.sql_admin_password
+      DB_DRIVER                             = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+      CORS_ALLOWED_ORIGINS                  = "http://${azurerm_public_ip.appgw.ip_address}"
+      APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["backend"].connection_string
 
     } : {},
     each.key == "frontend" ? {
-      VITE_API_BASE_URL = "http://${azurerm_public_ip.appgw.ip_address}"
-            APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["frontend"].connection_string
+      VITE_API_BASE_URL                     = "http://${azurerm_public_ip.appgw.ip_address}"
+      APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["frontend"].connection_string
 
     } : {}
   )
@@ -151,12 +151,12 @@ module "container_apps" {
 }
 
 module "application_gateway" {
-  source              = "./modules/application_gateway"
-  name                = var.app_gateway_name
-  resource_group_name = module.resource_group.resource_group.name
-  location            = var.location
-  subnet_id           = module.subnets["appgw_subnet"].subnet.id
-  sku                 = var.app_gateway_sku
+  source                     = "./modules/application_gateway"
+  name                       = var.app_gateway_name
+  resource_group_name        = module.resource_group.resource_group.name
+  location                   = var.location
+  subnet_id                  = module.subnets["appgw_subnet"].subnet.id
+  sku                        = var.app_gateway_sku
   log_analytics_workspace_id = module.log_analytics.id
 
   public_ip_id = azurerm_public_ip.appgw.id

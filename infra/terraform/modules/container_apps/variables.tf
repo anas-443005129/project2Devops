@@ -81,8 +81,8 @@ variable "ip_security_restrictions" {
   type = list(object({
     name             = string
     description      = optional(string)
-    action           = string   # "Allow" or "Deny"
-    ip_address_range = string   # e.g., "104.45.51.226/32"
+    action           = string # "Allow" or "Deny"
+    ip_address_range = string # e.g., "104.45.51.226/32"
   }))
   default = []
 }

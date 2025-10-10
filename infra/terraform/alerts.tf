@@ -4,10 +4,10 @@ resource "azurerm_monitor_metric_alert" "agw_unhealthy" {
   resource_group_name = module.resource_group.resource_group.name
   scopes              = [module.application_gateway.id]
 
-  description = "Any backend becomes unhealthy (UnhealthyHostCount > 0)"
-  severity    = 2
-  frequency   = "PT1M"
-  window_size = "PT5M"
+  description   = "Any backend becomes unhealthy (UnhealthyHostCount > 0)"
+  severity      = 2
+  frequency     = "PT1M"
+  window_size   = "PT5M"
   auto_mitigate = true
 
   criteria {
@@ -32,7 +32,7 @@ resource "azurerm_monitor_metric_alert" "aca_backend_cpu" {
 
   criteria {
     metric_namespace = "Microsoft.App/containerApps"
-    metric_name      = "CpuUsage"     # ACA metric
+    metric_name      = "CpuUsage" # ACA metric
     aggregation      = "Average"
     operator         = "GreaterThan"
     threshold        = 70

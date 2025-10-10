@@ -46,23 +46,23 @@ resource "azurerm_application_gateway" "main" {
 
   # --- HTTP (not HTTPS) to ACA; port 80; use Host header from FQDN ---
   backend_http_settings {
-    name                                  = "frontend-http-settings"
-    cookie_based_affinity                 = "Disabled"
-    port                                  = 80
-    protocol                              = "Http"
-    request_timeout                       = 60
-    probe_name                            = "frontend-health-probe"
-    pick_host_name_from_backend_address   = true
+    name                                = "frontend-http-settings"
+    cookie_based_affinity               = "Disabled"
+    port                                = 80
+    protocol                            = "Http"
+    request_timeout                     = 60
+    probe_name                          = "frontend-health-probe"
+    pick_host_name_from_backend_address = true
   }
 
   backend_http_settings {
-    name                                  = "backend-http-settings"
-    cookie_based_affinity                 = "Disabled"
-    port                                  = 80
-    protocol                              = "Http"
-    request_timeout                       = 60
-    probe_name                            = "backend-health-probe"
-    pick_host_name_from_backend_address   = true
+    name                                = "backend-http-settings"
+    cookie_based_affinity               = "Disabled"
+    port                                = 80
+    protocol                            = "Http"
+    request_timeout                     = 60
+    probe_name                          = "backend-health-probe"
+    pick_host_name_from_backend_address = true
   }
 
 
@@ -138,5 +138,5 @@ resource "azurerm_monitor_diagnostic_setting" "diag" {
 
   enabled_log { category = "ApplicationGatewayAccessLog" }
   enabled_log { category = "ApplicationGatewayPerformanceLog" }
-  metric      { category = "AllMetrics" }
+  metric { category = "AllMetrics" }
 }

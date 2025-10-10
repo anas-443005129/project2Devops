@@ -38,15 +38,15 @@ resource "azurerm_container_app" "app" {
       }
 
       # keep all actions the same ("ALLOW") for an allow-list
-    dynamic "ip_security_restriction" {
-  for_each = var.ip_security_restrictions
-  content {
-    name             = ip_security_restriction.value.name
-    description      = lookup(ip_security_restriction.value, "description", null)
-    action           = ip_security_restriction.value.action      # "Allow"
-    ip_address_range = ip_security_restriction.value.ip_address_range
-  }
-}
+      dynamic "ip_security_restriction" {
+        for_each = var.ip_security_restrictions
+        content {
+          name             = ip_security_restriction.value.name
+          description      = lookup(ip_security_restriction.value, "description", null)
+          action           = ip_security_restriction.value.action # "Allow"
+          ip_address_range = ip_security_restriction.value.ip_address_range
+        }
+      }
 
     }
   }
