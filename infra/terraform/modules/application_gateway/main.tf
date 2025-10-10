@@ -112,7 +112,6 @@ resource "azurerm_application_gateway" "main" {
       paths                      = ["/api/*"]
       backend_address_pool_name  = "backend-backend-pool"
       backend_http_settings_name = "backend-http-settings"
-      rewrite_rule_set_name      = "api-rewrite-rules"
     }
 
     path_rule {
@@ -130,13 +129,4 @@ resource "azurerm_application_gateway" "main" {
     url_path_map_name  = "path-based-routing"
     priority           = 100
   }
-}
-resource "azurerm_monitor_diagnostic_setting" "diag" {
-  name                       = "${var.name}-diag"
-  target_resource_id         = azurerm_application_gateway.main.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  enabled_log { category = "ApplicationGatewayAccessLog" }
-  enabled_log { category = "ApplicationGatewayPerformanceLog" }
-  metric { category = "AllMetrics" }
 }

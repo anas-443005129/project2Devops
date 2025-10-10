@@ -13,6 +13,8 @@ module "vnet" {
   location            = var.location
   address_space       = var.address_space
   tags                = var.tags
+  depends_on          = [module.resource_group]
+
 }
 
 module "subnets" {
@@ -34,6 +36,8 @@ module "log_analytics" {
   sku                 = "PerGB2018"
   retention_in_days   = 30
   tags                = var.tags
+  depends_on          = [module.resource_group]
+
 }
 
 module "sql_server" {
@@ -121,19 +125,17 @@ module "container_apps" {
   env_vars = merge(
     each.value.env_vars,
     each.key == "backend" ? {
-      DB_HOST                               = module.sql_server.server_private_fqdn
-      DB_PORT                               = "1433"
-      DB_NAME                               = module.sql_server.database_name
-      DB_USERNAME                           = var.sql_admin_username
-      DB_PASSWORD                           = var.sql_admin_password
-      DB_DRIVER                             = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
-      CORS_ALLOWED_ORIGINS                  = "http://${azurerm_public_ip.appgw.ip_address}"
-      APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["backend"].connection_string
+      DB_HOST              = module.sql_server.server_private_fqdn
+      DB_PORT              = "1433"
+      DB_NAME              = module.sql_server.database_name
+      DB_USERNAME          = var.sql_admin_username
+      DB_PASSWORD          = var.sql_admin_password
+      DB_DRIVER            = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+      CORS_ALLOWED_ORIGINS = "http://${azurerm_public_ip.appgw.ip_address}"
 
     } : {},
     each.key == "frontend" ? {
-      VITE_API_BASE_URL                     = "http://${azurerm_public_ip.appgw.ip_address}"
-      APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.apps["frontend"].connection_string
+      VITE_API_BASE_URL = "http://${azurerm_public_ip.appgw.ip_address}"
 
     } : {}
   )
@@ -165,7 +167,7 @@ module "application_gateway" {
   backend_fqdn  = module.container_apps["backend"].fqdn
 
   frontend_health_path = "/"
-  backend_health_path  = "/actuator/health"
+  backend_health_path  = "/api/ingredients"
 
   tags = var.tags
 
@@ -173,14 +175,3 @@ module "application_gateway" {
   azurerm_public_ip.appgw]
 }
 
-
-
-resource "azurerm_application_insights" "apps" {
-  for_each            = { frontend = true, backend = true }
-  name                = "${each.key}-appi"
-  location            = var.location
-  resource_group_name = module.resource_group.resource_group.name
-  application_type    = "web"
-  workspace_id        = module.log_analytics.id
-  retention_in_days   = 30
-}

@@ -54,14 +54,3 @@ resource "azurerm_container_app" "app" {
   tags = var.tags
 }
 
-resource "azurerm_monitor_diagnostic_setting" "this" {
-  name                       = "${var.name}-diag"
-  target_resource_id         = azurerm_container_app.app.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  # common categories for ACA
-  enabled_log { category = "ContainerAppSystemLogs" }
-  enabled_log { category = "ContainerAppConsoleLogs" }
-
-  metric { category = "AllMetrics" }
-}
