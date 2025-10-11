@@ -55,3 +55,4 @@ target/
 .env
 environment.env
 *.log
+infra/monitoring/*.auto.tfvars
