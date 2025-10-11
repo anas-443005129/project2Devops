@@ -17,6 +17,7 @@ on:
 
 jobs:
   backend:
+    name: Backend • Maven
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: backend } }
     steps:
@@ -28,27 +29,20 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build & Test
+      # Build, run tests, and generate JaCoCo XML at:
+      # backend/target/site/jacoco/jacoco.xml
+      - name: Build & Test (Maven)
         run: mvn -B -U clean verify
 
-      - name: SonarCloud Scan (backend)
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mvn -B -DskipTests \
-            org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.organization=anas-443005129 \
-            -Dsonar.projectKey=anas-443005129_project2Devops-backend \
-            -Dsonar.projectName="Abod Backend" \
-            -Dsonar.sources=src/main/java \
-            -Dsonar.tests=src/test/java \
-            -Dsonar.java.binaries=target/classes \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-            -Dsonar.newCode.referenceBranch=main
+      - name: Upload JaCoCo report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          # upload the XML so we can place it back into the same path before the scan
+          path: backend/target/site/jacoco/jacoco.xml
 
   frontend:
+    name: Frontend • Node
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: frontend } }
     steps:
@@ -62,25 +56,57 @@ jobs:
 
       - run: npm ci
       - run: npm run lint --if-present
-      - run: npm test --if-present -- --run
+      # Make sure tests produce lcov at frontend/coverage/lcov.info
+      - run: npm test --if-present -- --coverage --coverageReporters=lcov
       - run: npm run build
 
-      - name: SonarCloud Scan (frontend)
+      - name: Upload LCOV report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-report
+          path: frontend/coverage/lcov.info
+
+  sonar:
+    name: SonarCloud • Single Project
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Restore coverage reports back into their original locations
+      - name: Download JaCoCo
+        uses: actions/download-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco
+
+      - name: Download LCOV
+        uses: actions/download-artifact@v4
+        with:
+          name: lcov-report
+          path: frontend/coverage
+
+      # One scan for the whole repo (single project key)
+      - name: 🔍 SonarCloud Scan (monolithic)
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectBaseDir: frontend/
+          projectBaseDir: ./
           args: >
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.organization=anas-443005129
-            -Dsonar.projectKey=anas-443005129_project2Devops-frontend
-            -Dsonar.projectName="Abod Frontend"
-            -Dsonar.sources=src
-            -Dsonar.tests=src
+            -Dsonar.projectKey=anas-443005129_project2Devops
+            -Dsonar.projectName="project2Devops (monorepo single project)"
+            # Include both apps' sources & tests
+            -Dsonar.sources=backend/src/main/java,frontend/src
+            -Dsonar.tests=backend/src/test/java,frontend/src
             -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx
-            -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx,**/test/**,**/*.config.ts,**/*.config.js
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.typescript.tsconfigPath=tsconfig.json
+            # Coverage reports
+            -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
+            -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
+            # TS config (frontend)
+            -Dsonar.typescript.tsconfigPath=frontend/tsconfig.json
+            # New code definition
             -Dsonar.newCode.referenceBranch=main
