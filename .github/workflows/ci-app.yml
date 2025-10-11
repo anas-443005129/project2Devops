@@ -5,54 +5,42 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - backend/**
-      - frontend/**
-      - .github/workflows/ci-app.yml
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/ci-app.yml"
   push:
     branches: [ main ]
     paths:
-      - backend/**
-      - frontend/**
-      - .github/workflows/ci-app.yml
-
-env:
-  SONAR_HOST_URL: https://sonarcloud.io
-  SONAR_ORG: anas-443005129
-  # 👇 Replace with the EXACT project keys you have in SonarCloud
-  SONAR_FE_KEY: anas-443005129_project2Devops-frontend
-  SONAR_BE_KEY: anas-443005129_project2Devops-backend
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/ci-app.yml"
 
 jobs:
   backend:
-    name: Backend • Maven + Sonar
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
+    defaults: { run: { working-directory: backend } }
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Temurin JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
           cache: maven
 
-      - name: Build & Test (creates JaCoCo report)
-        run: |
-          mvn -B -U clean verify
+      - name: Build & Test
+        run: mvn -B -U clean verify
 
-      # --- SonarCloud (Java/Maven) ---
-      - name: 🔍 SonarCloud Scan (backend)
+      - name: SonarCloud Scan (backend)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }}
-          SONAR_TOKEN:  ${{ secrets.SONARTOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn sonar:sonar \
-            -Dsonar.organization=${{ env.SONAR_ORG }} \
-            -Dsonar.host.url=${{ env.SONAR_HOST_URL }} \
-            -Dsonar.projectKey=${{ env.SONAR_BE_KEY }} \
+          mvn -B -DskipTests \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.organization=anas-443005129 \
+            -Dsonar.projectKey=anas-443005129_project2Devops-backend \
             -Dsonar.projectName="Abod Backend" \
             -Dsonar.sources=src/main/java \
             -Dsonar.tests=src/test/java \
@@ -61,48 +49,38 @@ jobs:
             -Dsonar.newCode.referenceBranch=main
 
   frontend:
-    name: Frontend • Node + Sonar
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+    defaults: { run: { working-directory: frontend } }
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install deps
-        run: npm ci
+      - run: npm ci
+      - run: npm run lint --if-present
+      - run: npm test --if-present -- --run
+      - run: npm run build
 
-      - name: Lint
-        run: npm run lint --if-present
-
-      - name: Test w/ coverage (creates coverage/lcov.info)
-        # If you use Vitest, make sure "test" script enables coverage (e.g. vitest --coverage)
-        run: |
-          npm test --if-present -- --coverage --run
-
-      # --- SonarCloud (JS/TS) ---
-      - name: 🔍 SonarCloud Scan (frontend)
+      - name: SonarCloud Scan (frontend)
         uses: SonarSource/sonarqube-scan-action@v6
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }}
-          SONAR_TOKEN:  ${{ secrets.SONARTOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectBaseDir: frontend/
           args: >
-            -Dsonar.projectKey=${{ env.SONAR_FE_KEY }}
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.organization=anas-443005129
+            -Dsonar.projectKey=anas-443005129_project2Devops-frontend
             -Dsonar.projectName="Abod Frontend"
-            -Dsonar.organization=${{ env.SONAR_ORG }}
             -Dsonar.sources=src
             -Dsonar.tests=src
-            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx
-            -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**,**/*.config.ts,**/*.config.js
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx
+            -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx,**/test/**,**/*.config.ts,**/*.config.js
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.typescript.tsconfigPath=tsconfig.json
             -Dsonar.newCode.referenceBranch=main
