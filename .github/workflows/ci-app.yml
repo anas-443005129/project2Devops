@@ -56,8 +56,8 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
 
-      # Ensure your package.json has: "test:ci": "vitest --run --coverage"
-      # which must produce frontend/coverage/lcov.info
+      # Ensure package.json contains: "test:ci": "vitest --run --coverage"
+      # which must create frontend/coverage/lcov.info
       - name: Test (with coverage)
         run: npm run test:ci --if-present
 
@@ -77,12 +77,28 @@ jobs:
           ls -l backend/target/site/jacoco/jacoco.xml || true
           ls -l frontend/coverage/lcov.info || true
 
+      # Ensure the SonarCloud project exists (safe to run repeatedly)
+      - name: Ensure SonarCloud project exists
+        env:
+          SONAR_TOKEN: ${{ secrets.SONARTOKEN }}
+        run: |
+          curl -sS -u "${SONAR_TOKEN}:" \
+            -f -X POST "https://sonarcloud.io/api/projects/create" \
+            -d organization="anas-443005129" \
+            -d name="project2Devops" \
+            -d project="anas-443005129_project2Devops" || true
+          # Ensure default branch is 'main' (idempotent)
+          curl -sS -u "${SONAR_TOKEN}:" \
+            -f -X POST "https://sonarcloud.io/api/project_branches/rename" \
+            -d project="anas-443005129_project2Devops" \
+            -d name="main" || true
+
       - name: 🔍 SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_HOST_URL: https://sonarcloud.io
           SONAR_TOKEN: ${{ secrets.SONARTOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           projectBaseDir: .
           args: >
@@ -90,11 +106,12 @@ jobs:
             -Dsonar.organization=anas-443005129
             -Dsonar.projectName=project2Devops
             -Dsonar.newCode.referenceBranch=main
+            -Dsonar.verbose=true
             -Dsonar.sources=backend/src/main/java,frontend/src
             -Dsonar.tests=backend/src/test/java,frontend/src
             -Dsonar.java.binaries=backend/target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
             -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
             -Dsonar.typescript.tsconfigPath=frontend/tsconfig.json
-            -Dsonar.test.inclusions=frontend/**/*.test.ts,frontend/**/*.test.tsx,backend/src/test/java/**/*.java
-            -Dsonar.exclusions=frontend/**/*.test.ts,frontend/**/*.test.tsx,frontend/**/test/**,frontend/**/*.config.ts,frontend/**/*.config.js
+            -Dsonar.test.inclusions="frontend/**/*.test.ts,frontend/**/*.test.tsx,backend/src/test/java/**/*.java"
+            -Dsonar.exclusions="frontend/**/*.test.ts,frontend/**/*.test.tsx,frontend/**/test/**,frontend/**/*.config.ts,frontend/**/*.config.js"
