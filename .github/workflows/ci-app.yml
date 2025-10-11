@@ -67,28 +67,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 🔍 SonarCloud Scan (single project for repo)
+      - name: Verify files exist (debug)
+        run: |
+          set -e
+          echo "Listing important files:"
+          ls -l backend/target/site/jacoco || true
+          ls -l backend/target/site/jacoco/jacoco.xml || true
+          ls -l frontend/coverage || true
+          ls -l frontend/coverage/lcov.info || true
+
+      - name: 🔍 SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_TOKEN: ${{ secrets.SONARTOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }}
-          SONAR_TOKEN:  ${{ secrets.SONARTOKEN }}
         with:
-          # Scan from repo root, but scope sources/tests explicitly
           projectBaseDir: .
           args: >
+            -X
             -Dsonar.projectKey=anas-443005129_project2Devops
             -Dsonar.projectName="project2Devops"
             -Dsonar.organization=anas-443005129
-            -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.newCode.referenceBranch=main
-            # Java backend
             -Dsonar.sources=backend/src/main/java,frontend/src
             -Dsonar.tests=backend/src/test/java,frontend/src
             -Dsonar.java.binaries=backend/target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
-            # JS/TS frontend
             -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
             -Dsonar.typescript.tsconfigPath=frontend/tsconfig.json
-            # Optional exclusions
             -Dsonar.test.inclusions=frontend/**/*.test.ts,frontend/**/*.test.tsx,backend/src/test/java/**/*.java
             -Dsonar.exclusions=frontend/**/*.test.ts,frontend/**/*.test.tsx,frontend/**/test/**,frontend/**/*.config.ts,frontend/**/*.config.js
