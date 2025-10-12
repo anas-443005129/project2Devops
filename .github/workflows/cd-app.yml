@@ -80,3 +80,14 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       DOCKERHUB_USERNAME:    ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN:       ${{ secrets.DOCKERHUB_TOKEN }}
+
+  monitoring:
+    needs: deploy
+    # grant write so the reusable workflow can auto-commit fmt changes
+    permissions:
+      id-token: write
+      contents: write
+    uses: ./.github/workflows/monitoring-apply.yml
+    secrets:
+      AZURE_CREDENTIALS:     ${{ secrets.AZURE_CREDENTIALS }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
